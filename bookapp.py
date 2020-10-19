@@ -1,4 +1,5 @@
 import re
+import traceback
 
 from bookdb import BookDB
 
@@ -6,21 +7,50 @@ DB = BookDB()
 
 
 def book(book_id):
-    return "<h1>a book with id %s</h1>" % book_id
+    body = ['<body style="text-align: center;margin: 0 25%; border-left: .1rem dotted gray; border-right: .1rem dotted gray;">']
+    page = """
+        <h1>{title}</h1>
+        <table>
+            <tr><th>Author</th><td>{author}</td></tr>
+            <tr><th>Publisher</th><td>{publisher}</td></tr>
+            <tr><th>ISBN</th><td>{isbn}</td></tr>
+        </table>
+        <a href="/">Back to the list</a>
+        """
+    book = DB.title_info(book_id)
+    if book is None:
+        raise NameError
+
+    body.append('<hr>')
+    body.append(page.format(**book))
+    body.append('<hr>')
+    body.append('</body>')
+    return '\n'.join(body)
 
 
 def books():
-    return "<h1>a list of books</h1>"
+    all_books = DB.titles()
+
+    body = ['<h1>My Library</h1>']
+    body.append('<table>')
+    count = 1
+    row = '<tr><td>{}) </td><td><a href="/book/{id}">{title}</a></td></tr>'
+
+    for book in all_books:
+        body.append(row.format(count, **book))
+        count += 1
+    body.append('</table>')
+    return '\n'.join(body)
 
 def resolve_path(path):
     funcs = {
-        '': books,
+        'default': books,
         'book': book,
     }
 
     path = path.strip('/').split('/')
 
-    func_name = path[0]
+    func_name = 'default' if path[0] == '' else path[0]
     args = path[1:]
 
     try:
@@ -29,30 +59,6 @@ def resolve_path(path):
         raise NameError
 
     return func, args
-
-def books():
-    all_books = DB.titles()
-    body = ['<h1>My Bookshelf</h1>', '<ul>']
-    item_template = '<li><a href="/book/{id}">{title}</a></li>'
-    for book in all_books:
-        body.append(item_template.format(**book))
-    body.append('</ul>')
-    return '\n'.join(body)
-
-def book(book_id):
-    page = """
-<h1>{title}</h1>
-<table>
-    <tr><th>Author</th><td>{author}</td></tr>
-    <tr><th>Publisher</th><td>{publisher}</td></tr>
-    <tr><th>ISBN</th><td>{isbn}</td></tr>
-</table>
-<a href="/">Back to the list</a>
-"""
-    book = DB.title_info(book_id)
-    if book is None:
-        raise NameError
-    return page.format(**book)
 
 def application(environ, start_response):
     headers = [("Content-type", "text/html")]
